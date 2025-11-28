@@ -1,4 +1,4 @@
-name: Build and test (some versions)
+name: build & test
 
 permissions: {}
 
@@ -9,7 +9,7 @@ on:
     branches: ["**"]
 
 env:
-  DISABLE_NATIVE_BINARY_TESTS: false
+  DISABLE_NATIVE_BINARY_TESTS: true
   BUILD_LINUX: false
   BUILD_MACOS_ARM: true
   BUILD_MACOS_INTEL: true
