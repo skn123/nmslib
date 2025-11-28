@@ -88,6 +88,7 @@ jobs:
   macos-arm64:
     name: macOS ARM64 (M-series)
     needs: config
+    runs-on: ${{ matrix.os }}
     if: ${{ needs.config.outputs.build_macos_arm == 'true' }}
     strategy:
       matrix:
@@ -155,8 +156,8 @@ jobs:
   macos-x86_64:
     name: macOS Intel
     needs: config
+    runs-on: ${{ matrix.os }}
     if: ${{ needs.config.outputs.build_macos_intel == 'true' }}
-
     strategy:
       matrix:
         os: ["macos-15-intel"]
