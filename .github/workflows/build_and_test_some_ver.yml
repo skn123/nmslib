@@ -10,10 +10,10 @@ on:
 
 env:
   DISABLE_NATIVE_BINARY_TESTS: false
-  BUILD_LINUX: true
+  BUILD_LINUX: false
   BUILD_MACOS_ARM: true
   BUILD_MACOS_INTEL: true
-  BUILD_WINDOWS: true
+  BUILD_WINDOWS: false
 
 jobs:
   # Add this tiny config job above all build jobs
@@ -42,7 +42,7 @@ jobs:
     strategy:
       matrix:
         os: ["ubuntu-24.04", "ubuntu-24.04-arm"]
-        python-version: ["3.8", "3.14"]
+        python-version: ["3.11"]
         #python-version: ["3.14", "3.13", "3.12", "3.11", "3.10", "3.9", "3.8"]
     steps:
       # No need unless we test with extras 
@@ -55,12 +55,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v3
-        
-      - name: Install tox
-        run: pip install tox
 
       # Build and run native tests only for Python 3.8
       - name: Build and run native C++ tests
@@ -82,6 +76,7 @@ jobs:
         if: startsWith(matrix.os, 'ubuntu')
         env:
           PYTHON: ${{ matrix.python-version }}
+        # This command also tests wheels
         run: ./build_linux_wheels/deploy.sh
 
       # Upload artifacts
@@ -94,12 +89,24 @@ jobs:
     name: macOS ARM64 (M-series)
     needs: config
     if: ${{ needs.config.outputs.build_macos_arm == 'true' }}
-    runs-on: macos-15
+    strategy:
+      matrix:
+        os: ["macos-15"]
+        python-version: ["3.11"]
+        #python-version: ["3.14", "3.13", "3.12", "3.11", "3.10", "3.9", "3.8"]
     steps:
       - uses: actions/checkout@v4
-      # Optional: have Python 3.13 around for any helper scripts
+
       - uses: actions/setup-python@v5
-        with: { python-version: "3.13" }
+        with:
+          python-version: ${{ matrix.python-version }}
+
+
+      - name: Derive python_tag
+        run: |
+          VER="${{ matrix.python-version }}"
+          TAG="cp${VER/./}"
+          echo "python_tag=$TAG" >> $GITHUB_ENV
 
       - name: Verify architecture
         run: |
@@ -110,7 +117,7 @@ jobs:
         if: env.DISABLE_NATIVE_BINARY_TESTS != 'true'
         run: |
           cd similarity_search
-          cmake -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} .
+          cmake .
           make -j"$(sysctl -n hw.ncpu)"
           ./release/bunit
           ./release/test_integr
@@ -118,8 +125,7 @@ jobs:
 
       - uses: pypa/cibuildwheel@v2.20.0
         env:
-          #CIBW_BUILD: "cp38-* cp39-* cp310-* cp311-* cp312-* cp313-* cp314-*"
-          CIBW_BUILD: "cp38-* cp314-*"
+          CIBW_BUILD: "${{ env.python_tag }}-macosx_*"
           CIBW_ARCHS_MACOS: "arm64"
           CIBW_ENVIRONMENT_MACOS: >
             MACOSX_DEPLOYMENT_TARGET=11.0
@@ -128,6 +134,17 @@ jobs:
           CIBW_TEST_COMMAND: "python -c \"import nmslib; print(nmslib.__version__)\""
         with:
           package-dir: python_bindings
+
+      # Let's test these wheels using tox
+      # This assumes we build exactly one wheel
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Install tox
+        run: pip install --upgrade pip tox
+
+      - name: Test built wheel with tox
+        run: tox -e py${{ matrix.python-version }} --installpkg wheelhouse/*.whl -q
 
       - uses: actions/upload-artifact@v4
         with:
@@ -139,13 +156,25 @@ jobs:
     name: macOS Intel
     needs: config
     if: ${{ needs.config.outputs.build_macos_intel == 'true' }}
-    runs-on: macos-15-intel
+
+    strategy:
+      matrix:
+        os: ["macos-15-intel"]
+        python-version: ["3.11"]
+        #python-version: ["3.14", "3.13", "3.12", "3.11", "3.10", "3.9", "3.8"]
+
     steps:
       - uses: actions/checkout@v4
 
-      # Optional: have Python 3.8 around for any helper scripts
       - uses: actions/setup-python@v5
-        with: { python-version: "3.8" }
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Derive python_tag
+        run: |
+          VER="${{ matrix.python-version }}"
+          TAG="cp${VER/./}"
+          echo "python_tag=$TAG" >> $GITHUB_ENV
 
       - name: Verify architecture
         run: |
@@ -156,7 +185,7 @@ jobs:
         if: env.DISABLE_NATIVE_BINARY_TESTS != 'true'
         run: |
           cd similarity_search
-          cmake -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} .
+          cmake .
           make -j"$(sysctl -n hw.ncpu)"
           ./release/bunit
           ./release/test_integr
@@ -164,8 +193,7 @@ jobs:
 
       - uses: pypa/cibuildwheel@v2.20.0
         env:
-          #CIBW_BUILD: "cp38-* cp39-* cp310-* cp311-* cp312-* cp313-* cp314-*"
-          CIBW_BUILD: "cp38-* cp313-* cp314-*"
+          CIBW_BUILD: "${{ env.python_tag }}-macosx_*"
           CIBW_ARCHS_MACOS: "x86_64"
           CIBW_ENVIRONMENT_MACOS: >
             MACOSX_DEPLOYMENT_TARGET=10.13
@@ -174,10 +202,22 @@ jobs:
         with:
           package-dir: python_bindings
 
+      # Let's test these wheels using tox
+      # This assumes we build exactly one wheel
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Install tox
+        run: pip install --upgrade pip tox
+
+      - name: Test built wheel with tox
+        run: tox -e py${{ matrix.python-version }} --installpkg wheelhouse/*.whl -q
+
       - uses: actions/upload-artifact@v4
         with:
           name: wheels-${{ matrix.python-version }}-${{ matrix.os}}-${{ runner.arch }}
           path: wheelhouse/*.whl
+
   windows:
     name: Build and test wheels for Windows
     permissions:
@@ -189,7 +229,7 @@ jobs:
       matrix:
         os: ["windows-11-arm", "windows-2022"]
         #python-version: ["3.14", "3.13", "3.12", "3.11", "3.10", "3.9", "3.8"]
-        python-version: ["3.8", "3.11", "3.14"]
+        python-version: ["3.11"]
         # No early Python versions for windows-11-arm
         exclude:
           #- os: windows-2022
