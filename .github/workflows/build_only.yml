@@ -1,4 +1,4 @@
-name: Build wheels.
+name: Build wheels (no binary tests, only Python bindings tests).
 
 permissions: {}
 
