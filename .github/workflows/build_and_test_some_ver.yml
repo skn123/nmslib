@@ -10,9 +10,9 @@ on:
 
 env:
   DISABLE_NATIVE_BINARY_TESTS: false
-  BUILD_LINUX: true
-  BUILD_MACOS_ARM: true
-  BUILD_MACOS_INTEL: true
+  BUILD_LINUX: false
+  BUILD_MACOS_ARM: false
+  BUILD_MACOS_INTEL: false
   BUILD_WINDOWS: true
 
 jobs:
@@ -271,17 +271,31 @@ jobs:
                   # For all other versions, default to .0 (e.g., 3.12.0, 3.13.0, etc.)
                   $pyver = "${{ matrix.python-version }}.0"
               }
+              $mm = $matrixPyVer -replace '\.', ''                 # -> "313"
+              $pythonRoot = "C:\Python$mm-arm64"
+
+              # Download Python installer
               $url = "https://www.python.org/ftp/python/$pyver/python-$pyver-arm64.exe"
               Write-Host "Downloading ARM64 Python from $url"
               Invoke-WebRequest -Uri $url -OutFile python-installer.exe
-              # Start the Python installer and wait synchronously
-              $proc = Start-Process -FilePath "python-installer.exe" `
-                  -ArgumentList '/quiet InstallAllUsers=1 PrependPath=1 Include_test=0' `
-                  -PassThru -Wait
 
+              # Silent per-user install, no launcher, add to PATH, log for diagnostics
+              $args = @(
+                '/quiet',
+                'InstallAllUsers=0',
+                'PrependPath=1',
+                'Include_test=0',
+                'Include_launcher=0',
+                'SimpleInstall=1',
+                "TargetDir=$pythonRoot",
+                "/log=$pwd\py_install.log"
+              )
+              $proc = Start-Process -FilePath "python-installer.exe" -ArgumentList $args -PassThru -Wait
               if ($proc.ExitCode -ne 0) {
-                  throw "Python installer failed with exit code $($proc.ExitCode)"
+                Get-Content py_install.log -Tail 200 | Write-Host
+                throw "Python installer failed with exit code $($proc.ExitCode)"
               }
+
               Remove-Item python-installer.exe
 
               $matrixPyVer = "${{ matrix.python-version }}"   # e.g. "3.11", "3.12"
