@@ -12,6 +12,7 @@ env:
   BUILD_MACOS_INTEL: true
   BUILD_WINDOWS: true
 
+
 jobs:
   # Add this tiny config job above all build jobs
   # Super-hacky but should work
@@ -39,8 +40,7 @@ jobs:
     strategy:
       matrix:
         os: ["ubuntu-24.04", "ubuntu-24.04-arm"]
-        python-version: ["3.11"]
-        #python-version: ["3.14", "3.13", "3.12", "3.11", "3.10", "3.9", "3.8"]
+        python-version: ["3.14", "3.13", "3.12", "3.11", "3.10", "3.9", "3.8"]
     steps:
       # No need unless we test with extras 
       #- name: Install prerequisites
@@ -52,6 +52,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          allow-prereleases: true 
 
       # Build and run native tests only for Python 3.8
       - name: Build and run native C++ tests
@@ -90,14 +91,14 @@ jobs:
     strategy:
       matrix:
         os: ["macos-15"]
-        python-version: ["3.11"]
-        #python-version: ["3.14", "3.13", "3.12", "3.11", "3.10", "3.9", "3.8"]
+        python-version: ["3.13", "3.12", "3.11", "3.10", "3.9", "3.8"]
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          allow-prereleases: true 
 
 
       - name: Derive python_tag
@@ -112,7 +113,7 @@ jobs:
           python3 -c "import platform; print('machine:', platform.machine())"
 
       - name: Build & run native C++ tests (arm64)
-        if: env.DISABLE_NATIVE_BINARY_TESTS != 'true'
+        if: matrix.python-version == '3.8' && env.DISABLE_NATIVE_BINARY_TESTS != 'true'
         run: |
           cd similarity_search
           cmake .
@@ -125,6 +126,7 @@ jobs:
         env:
           CIBW_BUILD: "${{ env.python_tag }}-macosx_*"
           CIBW_ARCHS_MACOS: "arm64"
+          CIBW_PRERELEASE_PYTHONS: 1
           CIBW_ENVIRONMENT_MACOS: >
             MACOSX_DEPLOYMENT_TARGET=11.0
             ARCHFLAGS="-arch arm64"
@@ -142,8 +144,7 @@ jobs:
         run: pip install --upgrade pip tox
 
       - name: Test built wheel with tox
-        working-directory: python_bindings
-        run: tox -e py${{ matrix.python-version }} --installpkg wheelhouse/*.whl -q
+        run: tox -c python_bindings/tox.ini -e py${{ matrix.python-version }} --installpkg wheelhouse/*.whl -q
 
       - uses: actions/upload-artifact@v4
         with:
@@ -156,12 +157,10 @@ jobs:
     needs: config
     runs-on: ${{ matrix.os }}
     if: ${{ needs.config.outputs.build_macos_intel == 'true' }}
-
     strategy:
       matrix:
         os: ["macos-15-intel"]
-        python-version: ["3.11"]
-        #python-version: ["3.14", "3.13", "3.12", "3.11", "3.10", "3.9", "3.8"]
+        python-version: ["3.13", "3.12", "3.11", "3.10", "3.9", "3.8"]
 
     steps:
       - uses: actions/checkout@v4
@@ -169,6 +168,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          allow-prereleases: true 
 
       - name: Derive python_tag
         run: |
@@ -182,7 +182,7 @@ jobs:
           python3 -c "import platform; print('machine:', platform.machine())"
 
       - name: Build & run native C++ tests (x86_64)
-        if: env.DISABLE_NATIVE_BINARY_TESTS != 'true'
+        if: matrix.python-version == '3.8' && env.DISABLE_NATIVE_BINARY_TESTS != 'true'
         run: |
           cd similarity_search
           cmake .
@@ -195,6 +195,7 @@ jobs:
         env:
           CIBW_BUILD: "${{ env.python_tag }}-macosx_*"
           CIBW_ARCHS_MACOS: "x86_64"
+          CIBW_PRERELEASE_PYTHONS: 1
           CIBW_ENVIRONMENT_MACOS: >
             MACOSX_DEPLOYMENT_TARGET=10.13
             ARCHFLAGS=
@@ -211,8 +212,7 @@ jobs:
         run: pip install --upgrade pip tox
 
       - name: Test built wheel with tox
-        working-directory: python_bindings
-        run: tox -e py${{ matrix.python-version }} --installpkg wheelhouse/*.whl -q
+        run: tox -c python_bindings/tox.ini -e py${{ matrix.python-version }} --installpkg wheelhouse/*.whl -q
 
       - uses: actions/upload-artifact@v4
         with:
@@ -229,12 +229,9 @@ jobs:
     strategy:
       matrix:
         os: ["windows-11-arm", "windows-2022"]
-        #python-version: ["3.14", "3.13", "3.12", "3.11", "3.10", "3.9", "3.8"]
-        python-version: ["3.11"]
+        python-version: ["3.13", "3.12", "3.11", "3.10", "3.9", "3.8"]
         # No early Python versions for windows-11-arm
         exclude:
-          #- os: windows-2022
-            #python-version: "3.11"
           - os: windows-11-arm
             python-version: "3.10"
           - os: windows-11-arm
@@ -250,6 +247,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           architecture: 'x64'
+          allow-prereleases: true 
       # For ARM extra work is needed
       - name: Install Python for ARM64 ourselves + install tox and uv
         shell: pwsh
@@ -266,22 +264,35 @@ jobs:
                   # For all other versions, default to .0 (e.g., 3.12.0, 3.13.0, etc.)
                   $pyver = "${{ matrix.python-version }}.0"
               }
+              $mm = $matrixPyVer -replace '\.', ''                 # -> "313"
+              $pythonRoot = "C:\Python$mm-arm64"
+
+              # Download Python installer
               $url = "https://www.python.org/ftp/python/$pyver/python-$pyver-arm64.exe"
               Write-Host "Downloading ARM64 Python from $url"
               Invoke-WebRequest -Uri $url -OutFile python-installer.exe
-              # Start the Python installer and wait synchronously
-              $proc = Start-Process -FilePath "python-installer.exe" `
-                  -ArgumentList '/quiet InstallAllUsers=1 PrependPath=1 Include_test=0' `
-                  -PassThru -Wait
 
+              # Silent per-user install, no launcher, add to PATH, log for diagnostics
+              $args = @(
+                '/quiet',
+                'InstallAllUsers=0',
+                'PrependPath=1',
+                'Include_test=0',
+                'Include_launcher=0',
+                'SimpleInstall=1',
+                "TargetDir=$pythonRoot",
+                "/log=$pwd\py_install.log"
+              )
+              $proc = Start-Process -FilePath "python-installer.exe" -ArgumentList $args -PassThru -Wait
               if ($proc.ExitCode -ne 0) {
-                  throw "Python installer failed with exit code $($proc.ExitCode)"
+                Get-Content py_install.log -Tail 200 | Write-Host
+                throw "Python installer failed with exit code $($proc.ExitCode)"
               }
+
               Remove-Item python-installer.exe
 
               $matrixPyVer = "${{ matrix.python-version }}"   # e.g. "3.11", "3.12"
               $majorMinor = $matrixPyVer -replace '\.', ''     # -> "311", "312", etc.
-              $pythonRoot = "C:\Program Files\Python$majorMinor-arm64"
           } else {
               $pythonRoot = & python -c "import os, sys; print(os.path.dirname(sys.executable))"
               Write-Host "Installing Python ${{ matrix.python-version }} via setup-python..."
@@ -306,7 +317,7 @@ jobs:
         if: |
           (
             (runner.arch != 'ARM64' && matrix.python-version == '3.8') ||
-            (runner.arch == 'ARM64' && matrix.python-version == '3.11')
+            (runner.arch == 'ARM64' && matrix.python-version == '3.13')
           ) && env.DISABLE_NATIVE_BINARY_TESTS != 'true'
         shell: cmd
         run: |
@@ -349,6 +360,7 @@ jobs:
         run: |
           $pyver = "${{ matrix.python-version }}" -replace '\.', ''
           $env:CIBW_BUILD = "cp$pyver-*"
+          $env:CIBW_PRERELEASE_PYTHONS = 1
           Write-Host "Building only for $env:CIBW_BUILD"
           # Let's get rid of quotes
           $env:PYTHON_ROOT = $env:PYTHON_ROOT.Trim('"')

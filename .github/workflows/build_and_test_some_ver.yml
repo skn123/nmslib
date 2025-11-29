@@ -10,9 +10,9 @@ on:
 
 env:
   DISABLE_NATIVE_BINARY_TESTS: false
-  BUILD_LINUX: false
-  BUILD_MACOS_ARM: false
-  BUILD_MACOS_INTEL: false
+  BUILD_LINUX: true
+  BUILD_MACOS_ARM: true
+  BUILD_MACOS_INTEL: true
   BUILD_WINDOWS: true
 
 jobs:
@@ -452,3 +452,4 @@ jobs:
         with:
           name: all-platform-builds
           path: combined-artifacts/
+
