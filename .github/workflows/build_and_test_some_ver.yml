@@ -93,7 +93,8 @@ jobs:
     strategy:
       matrix:
         os: ["macos-15"]
-        python-version: ["3.11"]
+        #python-version: ["3.11"]
+        python-version: ["3.8", "3.14"]
         #python-version: ["3.14", "3.13", "3.12", "3.11", "3.10", "3.9", "3.8"]
     steps:
       - uses: actions/checkout@v4
@@ -145,6 +146,7 @@ jobs:
         run: pip install --upgrade pip tox
 
       - name: Test built wheel with tox
+        working-directory: python_bindings
         run: tox -e py${{ matrix.python-version }} --installpkg wheelhouse/*.whl -q
 
       - uses: actions/upload-artifact@v4
@@ -161,7 +163,7 @@ jobs:
     strategy:
       matrix:
         os: ["macos-15-intel"]
-        python-version: ["3.11"]
+        python-version: ["3.8", "3.14"]
         #python-version: ["3.14", "3.13", "3.12", "3.11", "3.10", "3.9", "3.8"]
 
     steps:
@@ -212,6 +214,7 @@ jobs:
         run: pip install --upgrade pip tox
 
       - name: Test built wheel with tox
+        working-directory: python_bindings
         run: tox -e py${{ matrix.python-version }} --installpkg wheelhouse/*.whl -q
 
       - uses: actions/upload-artifact@v4
