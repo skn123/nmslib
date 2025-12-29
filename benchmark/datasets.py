@@ -28,8 +28,8 @@ DATASET_DESC = {
     WIKI250K : VectorDataProp(url=f'{BASE_URL}/wikipedia250K.txt.bz2', type=VECTOR_SPARSE),
     GLOVE100D: VectorDataProp(url=f'{BASE_URL}/glove_noword.6B.100d.txt.bz2', type=VECTOR_DENSE),
     SIFT1M: VectorDataProp(url=f'{BASE_URL}/sift_texmex_base1m.txt.bz2', type=VECTOR_DENSE),
-    FINAL8: VectorDataProp(url=f'{BASE_URL}/final8.txt.bz2', type=VECTOR_DENSE)
-    FINAL32: VectorDataProp(url=f'{BASE_URL}/final32.txt.bz2', type=VECTOR_DENSE)
+    FINAL8: VectorDataProp(url=f'{BASE_URL}/final8.txt.bz2', type=VECTOR_DENSE),
+    FINAL32: VectorDataProp(url=f'{BASE_URL}/final32.txt.bz2', type=VECTOR_DENSE),
 }
 
 def get_bin_suff(data_type):
