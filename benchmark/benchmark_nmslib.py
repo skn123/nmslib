@@ -59,7 +59,9 @@ TEST_CASES = [
     TestCase(dataset_name=GLOVE100D, dist_type=DIST_INNER_PROD, K=10, method_name=METHOD_HNSW,
              index_time_params=DEFAULT_HNSW_INDEX_TIME_PARAM, query_time_param_arr=DEFAULT_HSNW_QUERY_TIME_PARAM_ARR),
     # KL-div FINAL32
-    TestCase(dataset_name=FINAL32, dist_type=DIST_KL_DIV, K=10, method_name=METHOD_HNSW,
+    #TestCase(dataset_name=FINAL32, dist_type=DIST_KL_DIV, K=10, method_name=METHOD_HNSW,
+             #index_time_params=DEFAULT_HNSW_INDEX_TIME_PARAM, query_time_param_arr=DEFAULT_HSNW_QUERY_TIME_PARAM_ARR),
+    TestCase(dataset_name=FINAL8, dist_type=DIST_KL_DIV, K=10, method_name=METHOD_HNSW,
              index_time_params=DEFAULT_HNSW_INDEX_TIME_PARAM, query_time_param_arr=DEFAULT_HSNW_QUERY_TIME_PARAM_ARR),
 
     # SPARSE DATA
